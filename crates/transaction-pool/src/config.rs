@@ -67,6 +67,8 @@ pub struct PoolConfig {
     pub max_queued_lifetime: Duration,
     /// Clear mempool after canonical state change (for sequenced mode)
     pub clear_on_canonical_state_change: bool,
+    /// Preserve insertion order for transactions (for L1-sequenced L2s)
+    pub preserve_insertion_order: bool,
 }
 
 impl PoolConfig {
@@ -115,6 +117,7 @@ impl Default for PoolConfig {
             max_new_pending_txs_notifications: MAX_NEW_PENDING_TXS_NOTIFICATIONS,
             max_queued_lifetime: MAX_QUEUED_TRANSACTION_LIFETIME,
             clear_on_canonical_state_change: false,
+            preserve_insertion_order: false,
         }
     }
 }

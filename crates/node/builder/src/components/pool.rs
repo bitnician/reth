@@ -4,8 +4,8 @@ use alloy_primitives::Address;
 use reth_chain_state::CanonStateSubscriptions;
 use reth_node_api::TxTy;
 use reth_transaction_pool::{
-    blobstore::DiskFileBlobStore, CoinbaseTipOrdering, PoolConfig, PoolTransaction, SubPoolLimit,
-    TransactionPool, TransactionValidationTaskExecutor, TransactionValidator,
+    blobstore::DiskFileBlobStore, ConfigurableOrdering, PoolConfig, PoolTransaction,
+    SubPoolLimit, TransactionPool, TransactionValidationTaskExecutor, TransactionValidator,
 };
 use std::{collections::HashSet, future::Future};
 
@@ -141,16 +141,19 @@ where
     ) -> eyre::Result<
         reth_transaction_pool::Pool<
             TransactionValidationTaskExecutor<V>,
-            CoinbaseTipOrdering<V::Transaction>,
+            ConfigurableOrdering<V::Transaction>,
             DiskFileBlobStore,
         >,
     > {
         // Destructure self to avoid partial move issues
         let TxPoolBuilder { ctx, validator, .. } = self;
 
+        // Use ConfigurableOrdering with the preserve_insertion_order flag
+        let ordering = ConfigurableOrdering::new(pool_config.preserve_insertion_order);
+        
         let transaction_pool = reth_transaction_pool::Pool::new(
             validator,
-            CoinbaseTipOrdering::default(),
+            ordering,
             blob_store,
             pool_config.clone(),
         );

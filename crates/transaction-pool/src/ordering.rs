@@ -98,6 +98,58 @@ impl<T> Clone for CoinbaseTipOrdering<T> {
     }
 }
 
+
+/// Configurable transaction ordering that can switch between different ordering strategies.
+///
+/// This ordering can behave either as:
+/// - Coinbase tip ordering (default): Orders by effective gas tip
+/// - Insertion ordering: Preserves submission order (all transactions get same priority)
+#[derive(Debug, Clone)]
+pub struct ConfigurableOrdering<T> {
+    /// If true, uses insertion ordering (all transactions get same priority).
+    /// If false, uses coinbase tip ordering (priority based on effective tip).
+    preserve_insertion_order: bool,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> ConfigurableOrdering<T> {
+    /// Creates a new configurable ordering with the specified mode.
+    pub fn new(preserve_insertion_order: bool) -> Self {
+        Self {
+            preserve_insertion_order,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<T> TransactionOrdering for ConfigurableOrdering<T>
+where
+    T: PoolTransaction + 'static,
+{
+    type PriorityValue = U256;
+    type Transaction = T;
+
+    fn priority(
+        &self,
+        transaction: &Self::Transaction,
+        base_fee: u64,
+    ) -> Priority<Self::PriorityValue> {
+        if self.preserve_insertion_order {
+            // Insertion ordering: all transactions get the same priority (0)
+            Priority::Value(U256::ZERO)
+        } else {
+            // Coinbase tip ordering: priority based on effective tip per gas
+            transaction.effective_tip_per_gas(base_fee).map(U256::from).into()
+        }
+    }
+}
+
+impl<T> Default for ConfigurableOrdering<T> {
+    fn default() -> Self {
+        Self::new(false) // Default to coinbase tip ordering
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

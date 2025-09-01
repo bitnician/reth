@@ -141,6 +141,11 @@ pub struct TxPoolArgs {
     /// This ensures no transactions remain in the pool after block production.
     #[arg(long = "txpool.clear-on-canonical-state-change")]
     pub clear_on_canonical_state_change: bool,
+
+    /// Preserve insertion order for transactions (for L1-sequenced L2s).
+    /// When enabled, transactions are ordered by arrival time instead of gas price.
+    #[arg(long = "txpool.preserve-insertion-order")]
+    pub preserve_insertion_order: bool,
 }
 
 impl TxPoolArgs {
@@ -194,6 +199,7 @@ impl Default for TxPoolArgs {
             disable_transactions_backup: false,
             max_batch_size: 1,
             clear_on_canonical_state_change: false,
+            preserve_insertion_order: false,
         }
     }
 }
@@ -237,6 +243,7 @@ impl RethTransactionPoolConfig for TxPoolArgs {
             max_new_pending_txs_notifications: self.max_new_pending_txs_notifications,
             max_queued_lifetime: self.max_queued_lifetime,
             clear_on_canonical_state_change: self.clear_on_canonical_state_change,
+            preserve_insertion_order: self.preserve_insertion_order,
         }
     }
 

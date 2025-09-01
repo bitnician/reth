@@ -497,6 +497,12 @@ where
             });
         }
 
+        // ConfigurableOrdering will now automatically handle the preserve_insertion_order flag
+        if pool_config.preserve_insertion_order {
+            info!(target: "reth::cli", 
+                "Transaction pool will preserve insertion order - transactions ordered by arrival time");
+        }
+        
         let transaction_pool = TxPoolBuilder::new(ctx)
             .with_validator(validator)
             .build_and_spawn_maintenance_task(blob_store, pool_config)?;
