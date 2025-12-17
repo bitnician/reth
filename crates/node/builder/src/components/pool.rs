@@ -8,6 +8,7 @@ use reth_node_api::{NodeTypes, TxTy};
 use reth_transaction_pool::{
     blobstore::DiskFileBlobStore, BlobStore, CoinbaseTipOrdering, PoolConfig, PoolTransaction,
     SubPoolLimit, TransactionPool, TransactionValidationTaskExecutor, TransactionValidator,
+    TxPoolOrdering,
 };
 use std::{collections::HashSet, future::Future};
 
@@ -174,6 +175,55 @@ where
     {
         let ctx = self.ctx;
         let transaction_pool = self.build(blob_store, pool_config);
+        // Spawn maintenance tasks using standalone functions
+        spawn_maintenance_tasks(ctx, transaction_pool.clone(), transaction_pool.config())?;
+
+        Ok(transaction_pool)
+    }
+
+    /// Build the pool with configurable ordering.
+    ///
+    /// This method allows specifying the transaction ordering strategy via the
+    /// `preserve_insertion_order` parameter.
+    pub fn build_with_ordering<BS>(
+        self,
+        blob_store: BS,
+        pool_config: PoolConfig,
+        preserve_insertion_order: bool,
+    ) -> reth_transaction_pool::Pool<
+        TransactionValidationTaskExecutor<V>,
+        TxPoolOrdering<V::Transaction>,
+        BS,
+    >
+    where
+        BS: BlobStore,
+    {
+        let TxPoolBuilder { validator, .. } = self;
+        let ordering = TxPoolOrdering::new(preserve_insertion_order);
+        reth_transaction_pool::Pool::new(validator, ordering, blob_store, pool_config)
+    }
+
+    /// Build the transaction pool with configurable ordering and spawn its maintenance tasks.
+    ///
+    /// This method allows specifying the transaction ordering strategy via the
+    /// `preserve_insertion_order` parameter.
+    pub fn build_with_ordering_and_spawn_maintenance_task<BS>(
+        self,
+        blob_store: BS,
+        pool_config: PoolConfig,
+        preserve_insertion_order: bool,
+    ) -> eyre::Result<
+        reth_transaction_pool::Pool<
+            TransactionValidationTaskExecutor<V>,
+            TxPoolOrdering<V::Transaction>,
+            BS,
+        >,
+    >
+    where
+        BS: BlobStore,
+    {
+        let ctx = self.ctx;
+        let transaction_pool = self.build_with_ordering(blob_store, pool_config, preserve_insertion_order);
         // Spawn maintenance tasks using standalone functions
         spawn_maintenance_tasks(ctx, transaction_pool.clone(), transaction_pool.config())?;
 

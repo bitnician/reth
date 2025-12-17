@@ -281,7 +281,9 @@ pub use crate::{
         TXPOOL_SUBPOOL_MAX_SIZE_MB_DEFAULT, TXPOOL_SUBPOOL_MAX_TXS_DEFAULT,
     },
     error::PoolResult,
-    ordering::{CoinbaseTipOrdering, Priority, TransactionOrdering},
+    ordering::{
+        CoinbaseTipOrdering, InsertionOrdering, Priority, TransactionOrdering, TxPoolOrdering,
+    },
     pool::{
         blob_tx_priority, fee_delta, state::SubPool, AddedTransactionOutcome,
         AllTransactionsEvents, FullTransactionEvent, NewTransactionEvent, TransactionEvent,
@@ -331,6 +333,16 @@ pub mod test_utils;
 pub type EthTransactionPool<Client, S, T = EthPooledTransaction> = Pool<
     TransactionValidationTaskExecutor<EthTransactionValidator<Client, T>>,
     CoinbaseTipOrdering<T>,
+    S,
+>;
+
+/// Type alias for ethereum transaction pool with configurable ordering.
+///
+/// This pool uses [`TxPoolOrdering`] which can be either coinbase tip ordering
+/// (default) or insertion ordering (when `--txpool.preserve-insertion-order` is set).
+pub type EthTransactionPoolWithOrdering<Client, S, T = EthPooledTransaction> = Pool<
+    TransactionValidationTaskExecutor<EthTransactionValidator<Client, T>>,
+    TxPoolOrdering<T>,
     S,
 >;
 

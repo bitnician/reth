@@ -45,6 +45,7 @@ pub struct DefaultTxPoolValues {
     max_tx_input_bytes: usize,
     max_cached_entries: u32,
     no_locals: bool,
+    preserve_insertion_order: bool,
     locals: Vec<Address>,
     no_local_transactions_propagation: bool,
     additional_validation_tasks: usize,
@@ -188,6 +189,12 @@ impl DefaultTxPoolValues {
         self
     }
 
+    /// Set whether to preserve transaction insertion order by default
+    pub const fn with_preserve_insertion_order(mut self, v: bool) -> Self {
+        self.preserve_insertion_order = v;
+        self
+    }
+
     /// Set the default local addresses
     pub fn with_locals(mut self, v: Vec<Address>) -> Self {
         self.locals = v;
@@ -272,6 +279,7 @@ impl Default for DefaultTxPoolValues {
             max_tx_input_bytes: DEFAULT_MAX_TX_INPUT_BYTES,
             max_cached_entries: DEFAULT_MAX_CACHED_BLOBS,
             no_locals: false,
+            preserve_insertion_order: false,
             locals: Vec::new(),
             no_local_transactions_propagation: false,
             additional_validation_tasks: DEFAULT_TXPOOL_ADDITIONAL_VALIDATION_TASKS,
@@ -367,6 +375,14 @@ pub struct TxPoolArgs {
     /// Flag to disable local transaction exemptions.
     #[arg(long = "txpool.nolocals", default_value_t = DefaultTxPoolValues::get_global().no_locals)]
     pub no_locals: bool,
+
+    /// Flag to preserve transaction insertion order in the pool.
+    ///
+    /// When enabled, transactions are ordered by the time they were submitted to the pool
+    /// rather than by their gas price. This is useful for scenarios where transaction
+    /// ordering should reflect submission time, such as MEV protection or fair ordering.
+    #[arg(long = "txpool.preserve-insertion-order", default_value_t = false)]
+    pub preserve_insertion_order: bool,
     /// Flag to allow certain addresses as local.
     #[arg(long = "txpool.locals", default_values = DefaultTxPoolValues::get_global().locals.iter().map(ToString::to_string))]
     pub locals: Vec<Address>,
@@ -454,6 +470,7 @@ impl Default for TxPoolArgs {
             max_tx_input_bytes,
             max_cached_entries,
             no_locals,
+            preserve_insertion_order,
             locals,
             no_local_transactions_propagation,
             additional_validation_tasks,
@@ -486,6 +503,7 @@ impl Default for TxPoolArgs {
             max_tx_input_bytes,
             max_cached_entries,
             no_locals,
+            preserve_insertion_order,
             locals,
             no_local_transactions_propagation,
             additional_validation_tasks,
@@ -612,6 +630,7 @@ mod tests {
             max_tx_input_bytes: 131072,
             max_cached_entries: 200,
             no_locals: true,
+            preserve_insertion_order: false,
             locals: vec![
                 address!("0x0000000000000000000000000000000000000001"),
                 address!("0x0000000000000000000000000000000000000002"),

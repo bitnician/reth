@@ -53,7 +53,7 @@ use reth_rpc_eth_types::{error::FromEvmError, EthApiError};
 use reth_rpc_server_types::RethRpcModule;
 use reth_tracing::tracing::{debug, info};
 use reth_transaction_pool::{
-    blobstore::DiskFileBlobStore, EthTransactionPool, PoolPooledTx, PoolTransaction,
+    blobstore::DiskFileBlobStore, EthTransactionPoolWithOrdering, PoolPooledTx, PoolTransaction,
     TransactionPool, TransactionValidationTaskExecutor,
 };
 use revm::context::TxEnv;
@@ -460,7 +460,7 @@ where
     >,
     Node: FullNodeTypes<Types = Types>,
 {
-    type Pool = EthTransactionPool<Node::Provider, DiskFileBlobStore>;
+    type Pool = EthTransactionPoolWithOrdering<Node::Provider, DiskFileBlobStore>;
 
     async fn build_pool(self, ctx: &BuilderContext<Node>) -> eyre::Result<Self::Pool> {
         let pool_config = ctx.pool_config();
@@ -511,11 +511,20 @@ where
             });
         }
 
+        let preserve_insertion_order = ctx.config().txpool.preserve_insertion_order;
         let transaction_pool = TxPoolBuilder::new(ctx)
             .with_validator(validator)
-            .build_and_spawn_maintenance_task(blob_store, pool_config)?;
+            .build_with_ordering_and_spawn_maintenance_task(
+                blob_store,
+                pool_config,
+                preserve_insertion_order,
+            )?;
 
-        info!(target: "reth::cli", "Transaction pool initialized");
+        if preserve_insertion_order {
+            info!(target: "reth::cli", "Transaction pool initialized with insertion order preserved");
+        } else {
+            info!(target: "reth::cli", "Transaction pool initialized");
+        }
         debug!(target: "reth::cli", "Spawned txpool maintenance task");
 
         Ok(transaction_pool)

@@ -97,6 +97,108 @@ impl<T> Clone for CoinbaseTipOrdering<T> {
     }
 }
 
+/// Insertion order based ordering for the pool.
+///
+/// This ordering returns a constant priority value for all transactions,
+/// which means transactions will be ordered solely by their `submission_id`
+/// (the order in which they were submitted to the pool).
+///
+/// When two transactions have the same priority, the pool falls back to
+/// ordering by submission_id, where older transactions (lower submission_id)
+/// have higher priority. Since all transactions get the same priority with
+/// this ordering, they will always be processed in insertion order.
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct InsertionOrdering<T>(PhantomData<T>);
+
+impl<T> TransactionOrdering for InsertionOrdering<T>
+where
+    T: PoolTransaction + 'static,
+{
+    type PriorityValue = u128;
+    type Transaction = T;
+
+    /// Returns a constant priority of 0 for all transactions.
+    ///
+    /// This ensures all transactions have equal priority, causing the pool
+    /// to fall back to ordering by submission_id (insertion order).
+    fn priority(
+        &self,
+        _transaction: &Self::Transaction,
+        _base_fee: u64,
+    ) -> Priority<Self::PriorityValue> {
+        Priority::Value(0)
+    }
+}
+
+impl<T> Default for InsertionOrdering<T> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+impl<T> Clone for InsertionOrdering<T> {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
+
+/// A configurable transaction ordering that can switch between
+/// coinbase tip ordering and insertion ordering.
+///
+/// This enum allows the pool to use different ordering strategies
+/// while maintaining a consistent type signature.
+#[derive(Debug, Clone)]
+pub enum TxPoolOrdering<T> {
+    /// Orders transactions by their coinbase tip (default behavior).
+    CoinbaseTip(CoinbaseTipOrdering<T>),
+    /// Orders transactions by their insertion order.
+    Insertion(InsertionOrdering<T>),
+}
+
+impl<T: PoolTransaction + 'static> TransactionOrdering for TxPoolOrdering<T> {
+    type PriorityValue = u128;
+    type Transaction = T;
+
+    fn priority(
+        &self,
+        transaction: &Self::Transaction,
+        base_fee: u64,
+    ) -> Priority<Self::PriorityValue> {
+        match self {
+            Self::CoinbaseTip(ordering) => ordering.priority(transaction, base_fee),
+            Self::Insertion(ordering) => ordering.priority(transaction, base_fee),
+        }
+    }
+}
+
+impl<T> Default for TxPoolOrdering<T> {
+    fn default() -> Self {
+        Self::CoinbaseTip(CoinbaseTipOrdering::default())
+    }
+}
+
+impl<T> TxPoolOrdering<T> {
+    /// Creates a new ordering based on whether insertion order should be preserved.
+    pub fn new(preserve_insertion_order: bool) -> Self {
+        if preserve_insertion_order {
+            Self::Insertion(InsertionOrdering::default())
+        } else {
+            Self::CoinbaseTip(CoinbaseTipOrdering::default())
+        }
+    }
+
+    /// Creates a coinbase tip ordering (default).
+    pub fn coinbase_tip() -> Self {
+        Self::CoinbaseTip(CoinbaseTipOrdering::default())
+    }
+
+    /// Creates an insertion ordering.
+    pub fn insertion() -> Self {
+        Self::Insertion(InsertionOrdering::default())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
